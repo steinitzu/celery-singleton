@@ -1,0 +1,45 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "920f03d6980da39fc0ee791961ec1a3d768ca183c8e7a0168801748deb491fa1"
+        },
+        "requires": {},
+        "sources": [
+            {
+                "url": "https://pypi.python.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "amqp": {
+            "hash": "sha256:5e0871a93433f941e444c2b859da095f05034d2ac1b7c084529cfd0b6f8eef18",
+            "version": "==2.1.4"
+        },
+        "billiard": {
+            "hash": "sha256:03f669755f1d6b7dbe528fe615a3164b0d8efca095382c514dd7026dfb79a9c6",
+            "version": "==3.5.0.2"
+        },
+        "celery": {
+            "hash": "sha256:0e5b7e0d7f03aa02061abfd27aa9da05b6740281ca1f5228a54fbf7fe74d8afa",
+            "version": "==4.0.2"
+        },
+        "kombu": {
+            "hash": "sha256:385bf38e6de7f3851f674671dbfe24572ce999608d293a85fb8a630654d8bd9c",
+            "version": "==4.0.2"
+        },
+        "pytz": {
+            "hash": "sha256:d1d6729c85acea5423671382868627129432fba9a89ecbb248d8d1c7a9f01c67",
+            "version": "==2017.2"
+        },
+        "redis": {
+            "hash": "sha256:97156b37d7cda4e7d8658be1148c983984e1a975090ba458cc7e244025191dbd",
+            "version": "==2.10.5"
+        },
+        "vine": {
+            "hash": "sha256:739b19304065de99bd1f4665abe461b449b1022c1e4f89a7925db9d50e9741ea",
+            "version": "==1.1.3"
+        }
+    },
+    "develop": {}
+}
