@@ -7,7 +7,9 @@ from kombu.utils.uuid import uuid
 
 def clear_locks(app):
     rc = app.backend.client
-    rc.delete(*rc.keys('SINGLETONLOCK_*'))
+    locks = rc.keys('SINGLETONLOCK_*')
+    if locks:
+        rc.delete(*locks)
 
 
 class Singleton(BaseTask):

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='celery-singleton',
-    version='0.0.1',
+    version='0.0.2',
     description='Prevent duplicate celery tasks',
     author='Steinthor Palsson',
     author_email='steini90@gmail.com',
