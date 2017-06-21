@@ -32,31 +32,41 @@ class Singleton(BaseTask):
             (task_name+task_args+task_kwargs).encode()
         ).hexdigest()
 
-    def lock_and_run(self, lock, task_id, *args, **kwargs):
+    def lock_and_run(self, lock, args=None, kwargs=None, task_id=None,
+                    producer=None, link=None, link_error=None, shadow=None,
+                    **options):
         lock_aquired = self.aquire_lock(lock, task_id)
         if lock_aquired:
             try:
-                return self.apply_async(
-                    args=args,
-                    kwargs=kwargs,
-                    task_id=task_id
+                return super(Singleton, self).apply_async(
+                    args=args, kwargs=kwargs,
+                    task_id=task_id, producer=producer,
+                    link=link, link_error=link_error,
+                    shadow=shadow, **options
                 )
             except:
                 # Clear the lock if apply_async fails
                 self.release_lock(*args, **kwargs)
                 raise
 
-    def delay(self, *args, **kwargs):
-        task_id = uuid()
+    def apply_async(self, args=None, kwargs=None, task_id=None, producer=None,
+                    link=None, link_error=None, shadow=None, **options):
+        task_id = task_id or uuid()
         lock = self.generate_lock(self.name, *args, **kwargs)
 
-        task = self.lock_and_run(lock, task_id, *args, **kwargs)
+        task = self.lock_and_run(lock, args=args, kwargs=kwargs,
+                                 task_id=task_id, producer=producer,
+                                 link=link, link_error=link_error,
+                                 shadow=shadow, **options)
         if task:
             return task
 
         existing_task_id = self.get_existing_task_id(lock)
         while not existing_task_id:
-            task = self.lock_and_run(lock, task_id, *args, **kwargs)
+            task = self.lock_and_run(lock, args=args, kwargs=kwargs,
+                                     task_id=task_id, producer=producer,
+                                     link=link, link_error=link_error,
+                                     shadow=shadow, **options)
             if task:
                 return task
             existing_task_id = self.get_existing_task_id(lock)

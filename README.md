@@ -33,12 +33,12 @@ That's it! Your task is a singleton and calls to `do_stuff.delay()` will either 
 
 ## How does it work?
 
-The `Singleton` class overrides `delay()` only, so this stuff only works if you spawn your task using `delay()`.    
+The `Singleton` class overrides `apply_async()` and `delay()`, so this stuff works if you spawn your task using `apply_async()` or `delay()`.
 
 Singleton uses celery's redis backend to store locks so they work across producers and consumers as long they're all using the same backend.  
 
 When you call `delay()` on a singleton task it attempts to aquire a lock in redis using a hash of [task_name+arguments] as a key and a new task ID as a value. `SETNX` is used for this to prevent race conditions.  
-If a lock is successfully aquired, the task is queued as normal with `apply_async`.   
+If a lock is successfully aquired, the task is queued as normal with the `apply_async` method of the base class.
 If another run of the task already holds a lock, we fetch its task ID instead and return an `AsyncResult` for it. This way it works seamlessly with a standard celery setup, there are no "duplicate exceptions" you need to handle, no timeouts. `delay()` always returns an `AsyncResult` as expected, either for the task you just spawned or for the task that aquired the lock before it.  
 So continuing on with the "Quick start" example:
 
