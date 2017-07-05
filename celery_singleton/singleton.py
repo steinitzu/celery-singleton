@@ -51,6 +51,9 @@ class Singleton(BaseTask):
 
     def apply_async(self, args=None, kwargs=None, task_id=None, producer=None,
                     link=None, link_error=None, shadow=None, **options):
+        args = args or []
+        kwargs = kwargs or {}
+        
         task_id = task_id or uuid()
         lock = self.generate_lock(self.name, *args, **kwargs)
 

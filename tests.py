@@ -88,3 +88,16 @@ def test_lock_cleared_on_failure(celery_session_worker):
     except Exception:
         pass
     assert id1 != id2
+
+
+def test_no_kwargs(celery_session_worker):
+    task = takes_a_sec.apply_async(args=(1, 2, 3))
+    result = task.get()
+    assert result == [[1, 2, 3], {}]
+
+
+def test_no_args(celery_session_worker):
+    task = takes_a_sec.apply_async()
+    result = task.get()
+    assert result == [[], {}]
+    
