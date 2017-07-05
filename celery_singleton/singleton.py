@@ -33,8 +33,8 @@ class Singleton(BaseTask):
         ).hexdigest()
 
     def lock_and_run(self, lock, args=None, kwargs=None, task_id=None,
-                    producer=None, link=None, link_error=None, shadow=None,
-                    **options):
+                     producer=None, link=None, link_error=None, shadow=None,
+                     **options):
         lock_aquired = self.aquire_lock(lock, task_id)
         if lock_aquired:
             try:
@@ -53,23 +53,27 @@ class Singleton(BaseTask):
                     link=None, link_error=None, shadow=None, **options):
         args = args or []
         kwargs = kwargs or {}
-        
+
         task_id = task_id or uuid()
         lock = self.generate_lock(self.name, *args, **kwargs)
 
-        task = self.lock_and_run(lock, args=args, kwargs=kwargs,
-                                 task_id=task_id, producer=producer,
-                                 link=link, link_error=link_error,
-                                 shadow=shadow, **options)
+        task = self.lock_and_run(
+            lock, args=args, kwargs=kwargs,
+            task_id=task_id, producer=producer,
+            link=link, link_error=link_error,
+            shadow=shadow, **options
+        )
         if task:
             return task
 
         existing_task_id = self.get_existing_task_id(lock)
         while not existing_task_id:
-            task = self.lock_and_run(lock, args=args, kwargs=kwargs,
-                                     task_id=task_id, producer=producer,
-                                     link=link, link_error=link_error,
-                                     shadow=shadow, **options)
+            task = self.lock_and_run(
+                lock, args=args, kwargs=kwargs,
+                task_id=task_id, producer=producer,
+                link=link, link_error=link_error,
+                shadow=shadow, **options
+            )
             if task:
                 return task
             existing_task_id = self.get_existing_task_id(lock)
