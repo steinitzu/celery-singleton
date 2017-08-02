@@ -100,4 +100,14 @@ def test_no_args(celery_session_worker):
     task = takes_a_sec.apply_async()
     result = task.get()
     assert result == [[], {}]
-    
+
+
+def test_get_existing_task_id(celery_session_worker):
+    lock = takes_a_sec.generate_lock(takes_a_sec.name, 1, 2, 3)
+    takes_a_sec.aquire_lock(lock, 'testing_task_id')
+
+    task_id = takes_a_sec.get_existing_task_id(lock)
+    takes_a_sec.release_lock(1, 2, 3)
+
+    assert task_id == 'testing_task_id'
+    assert takes_a_sec.get_existing_task_id(lock) is None

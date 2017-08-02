@@ -23,7 +23,8 @@ class Singleton(BaseTask):
 
     def get_existing_task_id(self, lock):
         app = self._get_app()
-        return app.backend.client.get(lock).decode()
+        task_id = app.backend.client.get(lock)
+        return task_id.decode() if task_id else None
 
     def generate_lock(self, task_name, *args, **kwargs):
         task_args = json.dumps(args, sort_keys=True)
