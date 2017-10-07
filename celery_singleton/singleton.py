@@ -51,7 +51,7 @@ class Singleton(BaseTask):
                 raise
 
     def apply_async(self, args=None, kwargs=None, task_id=None, producer=None,
-                    link=None, link_error=None, shadow=None, **options):
+                    link=None, link_error=None, shadow=None, revoke=False, **options):
         args = args or []
         kwargs = kwargs or {}
 
@@ -78,6 +78,21 @@ class Singleton(BaseTask):
             if task:
                 return task
             existing_task_id = self.get_existing_task_id(lock)
+
+        if revoke:
+            while existing_task_id:
+                self.AsyncResult(existing_task_id).revoke()
+                self.release_lock(*args, **kwargs)
+                task = self.lock_and_run(
+                    lock, args=args, kwargs=kwargs,
+                    task_id=task_id, producer=producer,
+                    link=link, link_error=link_error,
+                    shadow=shadow, **options
+                )
+                if task:
+                    return task
+                existing_task_id = self.get_existing_task_id(lock)
+
         return self.AsyncResult(existing_task_id)
 
     def release_lock(self, *args, **kwargs):
