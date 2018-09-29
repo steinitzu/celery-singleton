@@ -80,6 +80,13 @@ class Singleton(BaseTask):
             existing_task_id = self.get_existing_task_id(lock)
         return self.AsyncResult(existing_task_id)
 
+    def retry(self, args=None, kwargs=None, exc=None, throw=True,
+              eta=None, countdown=None, max_retries=None, **options):
+        args = args or self.request.args
+        kwargs = kwargs or self.request.kwargs
+        self.release_lock(*args, **kwargs)
+        return super(Singleton, self).retry(args=args, kwargs=kwargs)
+
     def release_lock(self, *args, **kwargs):
         app = self._get_app()
         lock = self.generate_lock(self.name, *args, **kwargs)
