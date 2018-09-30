@@ -85,7 +85,8 @@ class Singleton(BaseTask):
         args = args or self.request.args
         kwargs = kwargs or self.request.kwargs
         self.release_lock(*args, **kwargs)
-        return super(Singleton, self).retry(args=args, kwargs=kwargs)
+        return super(Singleton, self).retry(args, kwargs, exc, throw,
+              eta, countdown, max_retries, **options)
 
     def release_lock(self, *args, **kwargs):
         app = self._get_app()
