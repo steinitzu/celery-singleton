@@ -9,3 +9,4 @@ celery = "*"
 [dev-packages]
 pytest = "*"
 redis = "*"
+celery = "*"
