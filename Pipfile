@@ -3,5 +3,9 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [packages]
-celery = ">=4.0.0"
 redis = ">=2.10.5"
+celery = "*"
+
+[dev-packages]
+pytest = "*"
+redis = "*"

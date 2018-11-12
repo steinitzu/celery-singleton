@@ -82,5 +82,42 @@ def unlock_all(**kwargs):
     clear_locks(celery_app)
 ```
 
+## Backends
+
+Redis is the default storage backend for celery singleton. This is where task locks are stored where they can be accessed across celery workers.
+A custom redis url can be set using the `singleton_backend_url` config variable in the celery config. By default Celery Singleton attempts to use the redis instance of the celery result backend and if that fails the celery broker.
+
+If you don't use redis, you can implement a custom backend for your storage method ( see `celery_singleton.backend.RedisBackend` for inspiration) and set the config variable `singleton_backend_class` to point to that class.
+
+
+## Global configuration
+
+The following configuration variables can be added to the celery app config to change certain behaviours of singleton tasks
+
+Note if using old style celery config with uppercase variables and a namespace, make sure the singleton config matches. E.g. `CELERY_SINGLETON_BACKEND_URL` instead of `singleton_backend_url`
+
+
+| Key                        | Default                                 | Description                                                                                           |
+|----------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `singleton_backend_url`    | `celery_backend_url`                    | Storage backend for task locks.                                                                       |
+| `singleton_backend_class`  | `celery_singleton.backend.RedisBackend` | A full path or a backend class                                                                        |
+| `singleton_backend_kwargs` | `{}`                                    | Passed as keyword arguments to the backend class                                                      |
+| `singleton_key_prefix`     | `SINGLETONLOCK_`                        | Locks are stored as `<key_prefix><lock>`. Use to prevent collisions with other keys in your database. |
+
+
+
+## Testing
+
+Tests are located in the `/tests` directory can be run with tox by running `tox` from the root directory, or with pytest with:
+
+```
+pip install -r dev-requirements.txt
+python -m pytest
+```
+
+Some of the tests require a running redis server on `redis://localhost`
+To use a redis server on a different url/host, set the env variable `CELERY_SINGLETON_TEST_REDIS_URL`
+
+
 ## Contribute
 Please open an issue if you encounter a bug, have any questions or suggestions for improvements or run into any trouble at all using this package.  

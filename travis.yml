@@ -1,0 +1,10 @@
+sudo: false
+services:
+  - redis-server
+language: python
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+install: pip install tox-travis
+script: tox
