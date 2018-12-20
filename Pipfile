@@ -7,6 +7,7 @@ redis = ">=2.10.5"
 celery = "*"
 
 [dev-packages]
-pytest = "*"
+pytest = ">=3.0.0,<4.0.0"
 redis = "*"
 celery = "*"
+pytest-cov = "*"
