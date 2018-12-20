@@ -1,3 +1,6 @@
+from .redis import RedisBackend
+from .base import BaseBackend
+
 
 def get_backend(config):
     """
@@ -8,3 +11,6 @@ def get_backend(config):
     kwargs = config.backend_kwargs
     url = config.backend_url
     return klass(url, **kwargs)
+
+
+__all__ = ["RedisBackend", "BaseBackend", "get_backend"]
