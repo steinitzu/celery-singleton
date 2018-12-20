@@ -1,7 +1,9 @@
 from redis import Redis
 
+from .base import BaseBackend
 
-class RedisBackend:
+
+class RedisBackend(BaseBackend):
     def __init__(self, *args, **kwargs):
         """
         args and kwargs are forwarded to redis.from_url
@@ -9,20 +11,12 @@ class RedisBackend:
         self.redis = Redis.from_url(*args, decode_responses=True, **kwargs)
 
     def lock(self, lock, task_id):
-        """
-        :param Lock lock: Lock object
-        """
         return self.redis.setnx(lock, task_id)
 
     def unlock(self, lock):
         self.redis.delete(lock)
 
     def get(self, lock):
-        """
-        Get task ID for lock
-
-        :param Lock lock:
-        """
         return self.redis.get(lock)
 
     def clear(self, key_prefix):
