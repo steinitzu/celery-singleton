@@ -7,10 +7,9 @@ from . import util
 
 
 def clear_locks(app):
-    rc = app.backend.client
-    locks = rc.keys("SINGLETONLOCK_*")
-    if locks:
-        rc.delete(*locks)
+    config = Config(app)
+    backend = get_backend(config)
+    backend.clear(config.key_prefix)
 
 
 class Singleton(BaseTask):
