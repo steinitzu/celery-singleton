@@ -2,13 +2,9 @@ import pytest
 from unittest import mock
 import time
 from contextlib import contextmanager
-from uuid import uuid4
 
-import celery
 from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
-from celery_singleton.config import Config
-from celery_singleton.backends import get_backend
 
 
 @pytest.fixture(scope="session")
