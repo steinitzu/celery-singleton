@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from uuid import uuid4
 
 import celery
-from celery_singleton.singleton2 import Singleton
+from celery_singleton.singleton import Singleton
 from celery_singleton.config import Config
 from celery_singleton.backends import get_backend
 

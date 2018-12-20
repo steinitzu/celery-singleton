@@ -1,92 +1,114 @@
-import json
-from hashlib import md5
-
 from celery import Task as BaseTask
 from kombu.utils.uuid import uuid
+
+from .backends import get_backend
+from .config import Config
+from . import util
 
 
 def clear_locks(app):
     rc = app.backend.client
-    locks = rc.keys('SINGLETONLOCK_*')
+    locks = rc.keys("SINGLETONLOCK_*")
     if locks:
         rc.delete(*locks)
 
 
 class Singleton(BaseTask):
     abstract = True
+    _singleton_backend = None
+    _singleton_config = None
+
+    @property
+    def singleton_config(self):
+        if self._singleton_config:
+            return self._singleton_config
+        self._singleton_config = Config(self._get_app())
+        return self._singleton_config
+
+    @property
+    def singleton_backend(self):
+        if self._singleton_backend:
+            return self._singleton_backend
+        self._singleton_backend = get_backend(self.singleton_config)
+        return self._singleton_backend
 
     def aquire_lock(self, lock, task_id):
-        """
-        """
-        app = self._get_app()
-        return app.backend.client.setnx(lock, task_id)
+        return self.singleton_backend.lock(lock, task_id)
 
     def get_existing_task_id(self, lock):
-        app = self._get_app()
-        task_id = app.backend.client.get(lock)
-        return task_id.decode() if task_id else None
+        return self.singleton_backend.get(lock)
 
-    def generate_lock(self, task_name, *args, **kwargs):
-        task_args = json.dumps(args, sort_keys=True)
-        task_kwargs = json.dumps(kwargs, sort_keys=True)
-        return 'SINGLETONLOCK_'+md5(
-            (task_name+task_args+task_kwargs).encode()
-        ).hexdigest()
+    def generate_lock(self, task_name, task_args=None, task_kwargs=None):
+        task_args = task_args or []
+        task_kwargs = task_kwargs or {}
+        return util.generate_lock(
+            task_name,
+            task_args,
+            task_kwargs,
+            key_prefix=self.singleton_config.key_prefix,
+        )
 
-    def lock_and_run(self, lock, args=None, kwargs=None, task_id=None,
-                     producer=None, link=None, link_error=None, shadow=None,
-                     **options):
-        lock_aquired = self.aquire_lock(lock, task_id)
-        if lock_aquired:
-            try:
-                return super(Singleton, self).apply_async(
-                    args=args, kwargs=kwargs,
-                    task_id=task_id, producer=producer,
-                    link=link, link_error=link_error,
-                    shadow=shadow, **options
-                )
-            except:
-                # Clear the lock if apply_async fails
-                self.release_lock(*args, **kwargs)
-                raise
-
-    def apply_async(self, args=None, kwargs=None, task_id=None, producer=None,
-                    link=None, link_error=None, shadow=None, **options):
+    def apply_async(
+        self,
+        args=None,
+        kwargs=None,
+        task_id=None,
+        producer=None,
+        link=None,
+        link_error=None,
+        shadow=None,
+        **options
+    ):
         args = args or []
         kwargs = kwargs or {}
-
         task_id = task_id or uuid()
-        lock = self.generate_lock(self.name, *args, **kwargs)
+        lock = self.generate_lock(self.name, args, kwargs)
 
-        task = self.lock_and_run(
-            lock, args=args, kwargs=kwargs,
-            task_id=task_id, producer=producer,
-            link=link, link_error=link_error,
-            shadow=shadow, **options
+        run_args = dict(
+            lock=lock,
+            args=args,
+            kwargs=kwargs,
+            task_id=task_id,
+            producer=producer,
+            link=link,
+            link_error=link_error,
+            shadow=shadow,
+            **options
         )
+
+        task = self.lock_and_run(**run_args)
         if task:
             return task
 
         existing_task_id = self.get_existing_task_id(lock)
         while not existing_task_id:
-            task = self.lock_and_run(
-                lock, args=args, kwargs=kwargs,
-                task_id=task_id, producer=producer,
-                link=link, link_error=link_error,
-                shadow=shadow, **options
-            )
+            task = self.lock_and_run(**run_args)
             if task:
                 return task
             existing_task_id = self.get_existing_task_id(lock)
         return self.AsyncResult(existing_task_id)
 
-    def release_lock(self, *args, **kwargs):
-        app = self._get_app()
-        lock = self.generate_lock(self.name, *args, **kwargs)
-        app.backend.delete(lock)
+    def lock_and_run(self, lock, *args, task_id=None, **kwargs):
+        lock_aquired = self.aquire_lock(lock, task_id)
+        if lock_aquired:
+            try:
+                return super(Singleton, self).apply_async(
+                    *args, task_id=task_id, **kwargs
+                )
+            except Exception:
+                # Clear the lock if apply_async fails
+                self.unlock(lock)
+                raise
+
+    def release_lock(self, task_args=None, task_kwargs=None):
+        lock = self.generate_lock(self.name, task_args, task_kwargs)
+        self.unlock(lock)
+
+    def unlock(self, lock):
+        self.singleton_backend.unlock(lock)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        self.release_lock(*args, **kwargs)
+        self.release_lock(task_args=args, task_kwargs=kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
-        self.release_lock(*args, **kwargs)
+        self.release_lock(task_args=args, task_kwargs=kwargs)
