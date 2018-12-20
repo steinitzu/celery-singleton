@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import celery
 from celery import Task as BaseTask
-from celery_singleton.singleton import Singleton
+from celery_singleton.singleton import Singleton, clear_locks
 from celery_singleton.config import Config
 from celery_singleton.backends import get_backend
 
@@ -23,12 +23,6 @@ def celery_config(redis_url):
 @pytest.fixture(scope="session")
 def celery_enable_logging():
     return True
-
-
-def clear_locks(app):
-    config = Config(app)
-    backend = get_backend(config)
-    backend.clear(config.key_prefix)
 
 
 @pytest.fixture
@@ -162,3 +156,20 @@ class TestSimpleTask:
 
             with pytest.raises(ExpectedTaskFail):
                 simple_task.apply_async(args=[1, 2, 3])
+
+
+class TestClearLocks:
+    def test__clear_locks(self, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            [simple_task.apply_async(args=[i]) for i in range(5)]
+            clear_locks(app)
+
+            backend = simple_task.singleton_backend
+            config = simple_task.singleton_config
+
+            assert not backend.redis.keys(config.key_prefix + "*")
