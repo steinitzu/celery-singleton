@@ -1,9 +1,11 @@
 import pytest
+from unittest import mock
 import time
 from contextlib import contextmanager
 from uuid import uuid4
 
 import celery
+from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton
 from celery_singleton.config import Config
 from celery_singleton.backends import get_backend
@@ -91,6 +93,7 @@ class TestSimpleTask:
         self, scoped_app, celery_session_worker
     ):
         with scoped_app:
+
             @celery_session_worker.app.task(base=Singleton)
             def fails(*args):
                 raise ExpectedTaskFail()
@@ -109,14 +112,53 @@ class TestSimpleTask:
 
     def test__get_existing_task_id(self, scoped_app):
         with scoped_app as app:
+
             @app.task(base=Singleton)
             def simple_task(*args):
                 return args
 
-            lock = simple_task.generate_lock("simple_task", task_args=[1, 2, 3])
+            lock = simple_task.generate_lock(
+                "simple_task", task_args=[1, 2, 3]
+            )
             simple_task.aquire_lock(lock, "test_task_id")
 
             task_id = simple_task.get_existing_task_id(lock)
 
             assert task_id == "test_task_id"
-            
+
+    @mock.patch.object(
+        BaseTask, "apply_async", side_effect=Exception("Apply async error")
+    )
+    def test__apply_async_fails__lock_cleared(self, mock_base, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            task_args = [1, 2, 3]
+            lock = simple_task.generate_lock(
+                "simple_task", task_args=task_args
+            )
+            try:
+                simple_task.apply_async(args=task_args)
+            except Exception:
+                pass
+            assert simple_task.get_existing_task_id(lock) is None
+
+    @mock.patch.object(
+        BaseTask,
+        "apply_async",
+        side_effect=ExpectedTaskFail("Apply async error"),
+    )
+    def test__apply_async_fails__exception_reraised(
+        self, mock_base, scoped_app
+    ):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            with pytest.raises(ExpectedTaskFail):
+                simple_task.apply_async(args=[1, 2, 3])
