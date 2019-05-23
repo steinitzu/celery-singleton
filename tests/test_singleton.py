@@ -3,9 +3,10 @@ from unittest import mock
 import time
 from contextlib import contextmanager
 
+from celery import Celery
 from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
-from celery_singleton import util
+from celery_singleton import util, DuplicateTaskError
 
 
 @pytest.fixture(scope="session")
@@ -141,6 +142,18 @@ class TestSimpleTask:
             with pytest.raises(ExpectedTaskFail):
                 simple_task.apply_async(args=[1, 2, 3])
 
+    def test__raise_on_duplicate__raises_duplicate_error(self, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton, raise_on_duplicate=True)
+            def raise_on_duplicate_task(*args):
+                return args
+
+            t1 = raise_on_duplicate_task.delay(1, 2, 3)
+            with pytest.raises(DuplicateTaskError) as exinfo:
+                raise_on_duplicate_task.delay(1, 2, 3)
+            assert exinfo.value.task_id == t1.task_id
+
 
 class TestClearLocks:
     def test__clear_locks(self, scoped_app):
@@ -166,7 +179,7 @@ class TestUniqueOn:
     def test__unique_on_pos_arg__lock_on_unique_args_only(
         self, mock_gen, scoped_app, celery_session_worker
     ):
-        with scoped_app as app:
+        with scoped_app:
 
             @celery_session_worker.app.task(base=Singleton, unique_on=["a", "c"])
             def unique_on_args_task(a, b, c, d=4):
@@ -192,7 +205,7 @@ class TestUniqueOn:
     def test__unique_on_kwargs__lock_on_unique_args_only(
         self, mock_gen, scoped_app, celery_session_worker
     ):
-        with scoped_app as app:
+        with scoped_app:
 
             @celery_session_worker.app.task(base=Singleton, unique_on=["b", "d"])
             def unique_on_kwargs_task(a, b=2, c=3, d=4):
@@ -203,6 +216,7 @@ class TestUniqueOn:
             result = unique_on_kwargs_task.delay(2, b=3, c=4, d=5)
 
             result.get()
+            time.sleep(0.05)  # Small delay for on_success
 
             expected_args = [
                 [
@@ -230,6 +244,7 @@ class TestUniqueOn:
             result = unique_on_string_task.delay(2, b=3, c=4, d=5)
 
             result.get()
+            time.sleep(0.05)  # Small delay for on_success
 
             expected_args = [
                 [
@@ -239,3 +254,39 @@ class TestUniqueOn:
             ] * 2
             assert mock_gen.call_count == 2
             assert [list(a) for a in mock_gen.call_args_list] == expected_args
+
+
+class TestRaiseOnDuplicateConfig:
+    def test__default_false(self, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def mytask():
+                pass
+
+            assert mytask._raise_on_duplicate is False
+
+    def test__task_cfg_overrides_app_cfg(self, celery_config):
+        config = dict(celery_config, singleton_raise_on_duplicate=False)
+
+        app = Celery()
+        app.config_from_object(config)
+
+        @app.task(base=Singleton, raise_on_duplicate=True)
+        def mytask():
+            pass
+
+        assert mytask._raise_on_duplicate is True
+        assert mytask.singleton_config.raise_on_duplicate is False
+
+    def test__app_cfg_used_when_task_cfg_unset(self, celery_config):
+        config = dict(celery_config, singleton_raise_on_duplicate=True)
+
+        app = Celery()
+        app.config_from_object(config)
+
+        @app.task(base=Singleton)
+        def mytask():
+            pass
+
+        assert mytask._raise_on_duplicate is True

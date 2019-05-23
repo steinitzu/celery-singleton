@@ -4,6 +4,7 @@ import inspect
 
 from .backends import get_backend
 from .config import Config
+from .exceptions import DuplicateTaskError
 from . import util
 
 
@@ -18,6 +19,13 @@ class Singleton(BaseTask):
     _singleton_backend = None
     _singleton_config = None
     unique_on = None
+    raise_on_duplicate = None
+
+    @property
+    def _raise_on_duplicate(self):
+        if self.raise_on_duplicate is not None:
+            return self.raise_on_duplicate
+        return self.singleton_config.raise_on_duplicate or False
 
     @property
     def singleton_config(self):
@@ -99,7 +107,7 @@ class Singleton(BaseTask):
             if task:
                 return task
             existing_task_id = self.get_existing_task_id(lock)
-        return self.AsyncResult(existing_task_id)
+        return self.on_duplicate(existing_task_id)
 
     def lock_and_run(self, lock, *args, task_id=None, **kwargs):
         lock_aquired = self.aquire_lock(lock, task_id)
@@ -119,6 +127,14 @@ class Singleton(BaseTask):
 
     def unlock(self, lock):
         self.singleton_backend.unlock(lock)
+
+    def on_duplicate(self, existing_task_id):
+        if self._raise_on_duplicate:
+            raise DuplicateTaskError(
+                "Attempted to queue a duplicate of task ID {}".format(existing_task_id),
+                task_id=existing_task_id,
+            )
+        return self.AsyncResult(existing_task_id)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         self.release_lock(task_args=args, task_kwargs=kwargs)

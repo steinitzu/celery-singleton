@@ -12,8 +12,7 @@ class Config:
     @property
     def backend_class(self):
         path_or_class = self.app.conf.get(
-            "singleton_backend_class",
-            "celery_singleton.backends.redis.RedisBackend",
+            "singleton_backend_class", "celery_singleton.backends.redis.RedisBackend"
         )
         if isinstance(path_or_class, str):
             path = path_or_class.split(".")
@@ -35,3 +34,7 @@ class Config:
         if not url or not url.startswith("redis://"):
             url = self.app.conf.get("broker_url")
         return url
+
+    @property
+    def raise_on_duplicate(self):
+        return self.app.conf.get("singleton_raise_on_duplicate")
