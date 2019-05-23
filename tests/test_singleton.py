@@ -189,6 +189,7 @@ class TestUniqueOn:
 
             result = unique_on_args_task.delay(2, 3, 4, 5)
             result.get()
+            time.sleep(0.05)  # Small delay for on_success
 
             expected_args = [
                 [
