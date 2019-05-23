@@ -1,5 +1,6 @@
 from celery import Task as BaseTask
 from kombu.utils.uuid import uuid
+import inspect
 
 from .backends import get_backend
 from .config import Config
@@ -16,6 +17,7 @@ class Singleton(BaseTask):
     abstract = True
     _singleton_backend = None
     _singleton_config = None
+    unique_on = None
 
     @property
     def singleton_config(self):
@@ -38,12 +40,24 @@ class Singleton(BaseTask):
         return self.singleton_backend.get(lock)
 
     def generate_lock(self, task_name, task_args=None, task_kwargs=None):
+        unique_on = self.unique_on
         task_args = task_args or []
         task_kwargs = task_kwargs or {}
+        if unique_on:
+            if isinstance(unique_on, str):
+                unique_on = [unique_on]
+            sig = inspect.signature(self.run)
+            bound = sig.bind(*task_args, **task_kwargs).arguments
+
+            unique_args = []
+            unique_kwargs = {key: bound[key] for key in unique_on}
+        else:
+            unique_args = task_args
+            unique_kwargs = task_kwargs
         return util.generate_lock(
             task_name,
-            task_args,
-            task_kwargs,
+            unique_args,
+            unique_kwargs,
             key_prefix=self.singleton_config.key_prefix,
         )
 
