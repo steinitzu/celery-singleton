@@ -5,6 +5,7 @@ from uuid import uuid4
 from hashlib import md5
 from celery_singleton.backends.redis import RedisBackend
 from celery_singleton.backends import get_backend
+from celery_singleton import backends
 
 
 def random_hash():
@@ -27,6 +28,7 @@ def backend(redis_url):
         yield backend
     finally:
         clear_locks(backend)
+        backends._backend = None
 
 
 class TestLock:
@@ -56,9 +58,7 @@ class TestLock:
 
             b.lock(lock, task_id2)
 
-            assert (
-                b.redis.get(lock) == task_id and b.redis.get(lock) != task_id2
-            )
+            assert b.redis.get(lock) == task_id and b.redis.get(lock) != task_id2
 
     def test__lock_exists__returns_false(self, backend):
         with backend as b:
@@ -111,7 +111,10 @@ def fake_config():
         backend_kwargs = {}
         backend_class = FakeBackend
 
-    return FakeConfig()
+    try:
+        yield FakeConfig()
+    finally:
+        backends._backend = None
 
 
 class TestGetBackend:
@@ -133,3 +136,11 @@ class TestGetBackend:
         backend = get_backend(fake_config)
 
         assert backend.args[0] == fake_config.backend_url
+
+    def test__get_backend_twice_returns_same_instance(self, fake_config):
+        fake_config.backend_url = "test backend url"
+
+        backend = get_backend(fake_config)
+        backend2 = get_backend(fake_config)
+
+        assert backend is backend2
