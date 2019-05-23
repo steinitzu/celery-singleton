@@ -8,5 +8,4 @@ celery = "*"
 
 [dev-packages]
 pytest = ">=3.0.0,<4.0.0"
-redis = "*"
 pytest-cov = "*"
