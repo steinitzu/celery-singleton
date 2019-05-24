@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class BaseBackend(ABC):
     @abstractmethod
-    def lock(self, lock, task_id):
+    def lock(self, lock, task_id, expiry=None):
         """
         Store a lock for given lock value and task ID
 
@@ -11,6 +11,11 @@ class BaseBackend(ABC):
         :type lock: `str`
         :param task_id: Task id associated with the lock
         :type task_id: `str`
+        :param expiry: Lock's time to live in seconds, after which
+            the lock will be removed regardless of whether
+            the task has finished or not. When not supplied the
+            lock never expires.
+        :type expiry: `int`
         :return: `True` if lock was aquired succesfully otherwise `False`
         :rtype: `bool`
         """

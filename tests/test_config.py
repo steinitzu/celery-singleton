@@ -32,16 +32,10 @@ class TestBackend:
         config = Config(celery_app)
         assert config.backend_class == RedisBackend
 
-    @pytest.mark.celery(
-        singleton_backend_class="singleton_backends.fake.FakeBackend"
-    )
-    def test__override_from_string__returns_class(
-        self, celery_app, monkeypatch
-    ):
+    @pytest.mark.celery(singleton_backend_class="singleton_backends.fake.FakeBackend")
+    def test__override_from_string__returns_class(self, celery_app, monkeypatch):
         with monkeypatch.context() as monkey:
-            monkey.setitem(
-                sys.modules, "singleton_backends.fake", FakeBackendModule
-            )
+            monkey.setitem(sys.modules, "singleton_backends.fake", FakeBackendModule)
             config = Config(celery_app)
             assert config.backend_class == FakeBackendModule.FakeBackend
 
@@ -60,3 +54,30 @@ class TestKeyPrefix:
     def test__override_key_prefix(self, celery_app):
         config = Config(celery_app)
         assert config.key_prefix == "CUSTOM_KEY_PREFIX"
+
+
+class TestRaiseOnDuplicate:
+    @pytest.mark.celery(singleton_raise_on_duplicate=True)
+    def test__true_is_true(self, celery_app):
+        config = Config(celery_app)
+        assert config.raise_on_duplicate is True
+
+    @pytest.mark.celery(singleton_raise_on_duplicate=False)
+    def test__false_is_false(self, celery_app):
+        config = Config(celery_app)
+        assert config.raise_on_duplicate is False
+
+    def test__default_is_none(self, celery_app):
+        config = Config(celery_app)
+        assert config.raise_on_duplicate is None
+
+
+class TestTaskExpiry:
+    @pytest.mark.celery(singleton_lock_expiry=60)
+    def test__has_config_value(self, celery_app):
+        config = Config(celery_app)
+        assert config.lock_expiry == 60
+
+    def test__default_is_none(self, celery_app):
+        config = Config(celery_app)
+        assert config.lock_expiry is None

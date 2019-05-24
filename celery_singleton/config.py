@@ -38,3 +38,7 @@ class Config:
     @property
     def raise_on_duplicate(self):
         return self.app.conf.get("singleton_raise_on_duplicate")
+
+    @property
+    def lock_expiry(self):
+        return self.app.conf.get("singleton_lock_expiry")

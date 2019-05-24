@@ -10,8 +10,8 @@ class RedisBackend(BaseBackend):
         """
         self.redis = Redis.from_url(*args, decode_responses=True, **kwargs)
 
-    def lock(self, lock, task_id):
-        return self.redis.setnx(lock, task_id)
+    def lock(self, lock, task_id, expiry=None):
+        return not not self.redis.set(lock, task_id, nx=True, ex=expiry)
 
     def unlock(self, lock):
         self.redis.delete(lock)
@@ -22,9 +22,7 @@ class RedisBackend(BaseBackend):
     def clear(self, key_prefix):
         cursor = 0
         while True:
-            cursor, keys = self.redis.scan(
-                cursor=cursor, match=key_prefix + "*"
-            )
+            cursor, keys = self.redis.scan(cursor=cursor, match=key_prefix + "*")
             for k in keys:
                 self.redis.delete(k)
             if cursor == 0:

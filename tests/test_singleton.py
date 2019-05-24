@@ -7,6 +7,7 @@ from celery import Celery
 from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
 from celery_singleton import util, DuplicateTaskError
+from celery_singleton.backends.redis import RedisBackend
 
 
 @pytest.fixture(scope="session")
@@ -291,3 +292,21 @@ class TestRaiseOnDuplicateConfig:
             pass
 
         assert mytask._raise_on_duplicate is True
+
+
+class TestLockExpiry:
+    @mock.patch.object(RedisBackend, "lock", return_value=True, autospec=True)
+    def test__lock_expiry__sent_to_backend(self, mock_lock, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton, lock_expiry=60)
+            def simple_task(*args):
+                return args
+
+            result = simple_task.delay(1, 2, 3)
+
+            lock = simple_task.generate_lock(simple_task.name, task_args=[1, 2, 3])
+
+            mock_lock.assert_called_once_with(
+                simple_task.singleton_backend, lock, result.task_id, expiry=60
+            )

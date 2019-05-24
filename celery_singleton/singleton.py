@@ -20,6 +20,7 @@ class Singleton(BaseTask):
     _singleton_config = None
     unique_on = None
     raise_on_duplicate = None
+    lock_expiry = None
 
     @property
     def _raise_on_duplicate(self):
@@ -42,7 +43,12 @@ class Singleton(BaseTask):
         return self._singleton_backend
 
     def aquire_lock(self, lock, task_id):
-        return self.singleton_backend.lock(lock, task_id)
+        expiry = (
+            self.lock_expiry
+            if self.lock_expiry is not None
+            else self.singleton_config.lock_expiry
+        )
+        return self.singleton_backend.lock(lock, task_id, expiry=expiry)
 
     def get_existing_task_id(self, lock):
         return self.singleton_backend.get(lock)
