@@ -47,6 +47,9 @@ def do_stuff(*args, **kwargs):
 
 # run the task as normal
 async_result = do_stuff.delay(1, 2, 3, a='b')
+async_result2 = do_stuff.delay(1, 2, 3, a='b')
+
+assert async_result == async_result2  # These are the same, task is only queued once
 ```
 
 That's it! Your task is a singleton and calls to `do_stuff.delay()` will either queue a new task or return an AsyncResult for the currently queued/running instance of the task.
@@ -103,6 +106,8 @@ def unlock_all(**kwargs):
     clear_locks(celery_app)
 ```
 
+An alternative is to set a [lock expiry](#lock\_expiry) time in the task or app config. This makes it so that locks are always released after a given time.
+
 ## Backends
 
 Redis is the default storage backend for celery singleton. This is where task locks are stored where they can be accessed across celery workers.
@@ -155,6 +160,28 @@ except DuplicateTaskerror as e:
 
 This option can also be applied globally to all `Singleton` tasks by setting `singleton_raise_on_duplicate` in the [app config](#app-configuration). The task level option always overrides the app config when supplied.
 
+### lock\_expiry
+
+Number of seconds until the task lock expires. This is useful when you want a max of one task queued within a given time frame rather than strictly one at a time.
+This also adds some safety to your application as it guarantees that locks will eventually be released in case of worker crashes and network failures. For this use case it's recomenneded to set the lock expiry to a value slightly longer than the expected task duration.
+
+Example
+
+```python
+@app.task(base=Singleton, lock_expiry=10)
+def runs_for_12_seconds():
+    self.time.sleep(12)
+
+
+task1 = runs_for_12_seconds.delay()
+time.sleep(11)
+task2 = runs_for_12_seconds.delay()
+
+assert task1 != task2  # These are two separate task instances
+```
+
+This option can be applied globally in the [app config](#app-configuration) with `singleton_lock_expiry`. Task option supersedes the app config.
+
 
 ## App Configuration
 
@@ -162,14 +189,15 @@ Celery singleton supports the following configuration option. These should be ad
 Note: if using old style celery config with uppercase variables and a namespace, make sure the singleton config matches. E.g. `CELERY_SINGLETON_BACKEND_URL` instead of `singleton_backend_url`
 
 
-| Key                            | Default                                 | Description                                                                                                                                                       |
-|--------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `singleton_backend_url`        | `celery_backend_url`                    | The URL of the storage backend. If using the default backend implementation, this should be a redis URL. It is passed as the first argument to the backend class. |
-| `singleton_backend_class`      | `celery_singleton.backend.RedisBackend` | The fulll import path of a backend class as string or a reference to the class                                                                                    |
-| `singleton_backend_kwargs`     | `{}`                                    | Passed as keyword arguments to the backend class                                                                                                                  |
-| `singleton_key_prefix`         | `SINGLETONLOCK_`                        | Locks are stored as `<key_prefix><lock>`. Use to prevent collisions with other keys in your database.                                                             |
-| `singleton_raise_on_duplicate` | `False`                                 | When `True` an attempt to queue a duplicate task will raise a `DuplicateTaskerror`. The default behavior is to return the `AsyncResult` for the existing task.    |
-|                                |                                         |                                                                                                                                                                   |
+| Key                            | Default                                 | Description                                                                                                                                                          |
+|--------------------------------|-----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `singleton_backend_url`        | `celery_backend_url`                    | The URL of the storage backend. If using the default backend implementation, this should be a redis URL. It is passed as the first argument to the backend class.    |
+| `singleton_backend_class`      | `celery_singleton.backend.RedisBackend` | The fulll import path of a backend class as string or a reference to the class                                                                                       |
+| `singleton_backend_kwargs`     | `{}`                                    | Passed as keyword arguments to the backend class                                                                                                                     |
+| `singleton_key_prefix`         | `SINGLETONLOCK_`                        | Locks are stored as `<key_prefix><lock>`. Use to prevent collisions with other keys in your database.                                                                |
+| `singleton_raise_on_duplicate` | `False`                                 | When `True` an attempt to queue a duplicate task will raise a `DuplicateTaskerror`. The default behavior is to return the `AsyncResult` for the existing task.       |
+| `singleton_lock_expiry`        | `None` (Never expires)                  | Lock expiry time in second for singleton task locks. When lock expires identical tasks are allowed to run regardless of whether the locked task has finished or not. |
+|                                |                                         |                                                                                                                                                                      |
 
 
 ## Testing
