@@ -8,6 +8,8 @@ from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
 from celery_singleton import util, DuplicateTaskError
 from celery_singleton.backends.redis import RedisBackend
+from celery_singleton.backends import get_backend
+from celery_singleton.config import Config
 
 
 @pytest.fixture(scope="session")
@@ -30,7 +32,8 @@ def scoped_app(celery_app):
     try:
         yield celery_app
     finally:
-        clear_locks(celery_app)
+        backend = get_backend(Config(celery_app))
+        backend.redis.flushall()
 
 
 class ExpectedTaskFail(Exception):

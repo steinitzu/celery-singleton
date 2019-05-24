@@ -27,7 +27,7 @@ def backend(redis_url):
     try:
         yield backend
     finally:
-        clear_locks(backend)
+        backend.redis.flushall()
         backends._backend = None
 
 
