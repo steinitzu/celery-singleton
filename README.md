@@ -128,7 +128,7 @@ This can be used to make celery-singleton only consider certain arguments when d
 For example, this task allows only one instance per username, other arguments don't matter:
 
 ```python
-@app.task(base=Singleton, unqiue_on=['user_id', ])
+@app.task(base=Singleton, unique_on=['user_id', ])
 def do_something(username, otherarg=None):
     time.sleep(5)
 
