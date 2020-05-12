@@ -7,17 +7,19 @@ This is a baseclass for celery tasks that ensures only one instance of the task 
 **Table of Contents**
 
 - [Celery-Singleton](#celery-singleton)
-    - [Prerequisites](#prerequisites)
-    - [Quick start](#quick-start)
-    - [How does it work?](#how-does-it-work)
-    - [Handling deadlocks](#handling-deadlocks)
-    - [Backends](#backends)
-    - [Task configuration](#task-configuration)
-        - [unique\_on](#uniqueon)
-        - [raise\_on\_duplicate](#raiseonduplicate)
-    - [App Configuration](#app-configuration)
-    - [Testing](#testing)
-    - [Contribute](#contribute)
+  - [Prerequisites](#prerequisites)
+  - [Quick start](#quick-start)
+  - [How does it work?](#how-does-it-work)
+  - [Handling deadlocks](#handling-deadlocks)
+  - [Backends](#backends)
+  - [Task configuration](#task-configuration)
+    - [unique\_on](#unique_on)
+    - [raise\_on\_duplicate](#raise_on_duplicate)
+    - [lock\_expiry](#lock_expiry)
+    - [callenge_lock_on_startup](#callenge_lock_on_startup)
+  - [App Configuration](#app-configuration)
+  - [Testing](#testing)
+  - [Contribute](#contribute)
 
 <!-- markdown-toc end -->
 
@@ -182,6 +184,42 @@ assert task1 != task2  # These are two separate task instances
 
 This option can be applied globally in the [app config](#app-configuration) with `singleton_lock_expiry`. Task option supersedes the app config.
 
+### callenge_lock_on_startup 
+
+Some tasks may be stucked after unexpected shuttdown of a worker.
+If this situation should be avoided, the lock can be challenged on task startup.
+Setting `challenge_lock_on_startup` to true will cause every submission of this task to check, before trying to acquire a lock :
+
+1. check if a lock matching this task is already there
+2. check if at least one worker responds to ping
+3. inspect workers for finding owner of the lock (existing task with id matching the one from le lock)  
+    1. inspect active tasks (tasks currently being processed by a worker) : check that task id is not present
+    2. inspect reserved tasks (tasks claimed by a worker, but not yet running) : check that task id is not present
+    3. inspect scheduled tasks (tasks received by , but scheduled at some point in the future) : check that task id is not present
+
+If any of previous check fails, the lock remains.
+
+> **Use with caution** : this configuration may lead to unexpected behaviour. Try using classic [deadlocks handling](#handling-deadlocks) if possible.
+> Intermittent failure to communicate with workers or submission of a task before any worker receives the task owning the lock may lead to having multiple instances of the task running simultaneously.
+> The extensive use of the [`celery worker inspection`](https://docs.celeryproject.org/en/stable/userguide/workers.html#inspecting-workers) API may also lead to performances issues when working with large number of workers and/or large number of tasks.
+
+```python
+from celery_singleton import Singleton
+from .local_path import app
+
+
+@app.task(
+    base=Singleton,
+    challenge_lock_on_startup=True,
+    celery_app=app,
+)
+def do_something(username):
+    time.sleep(5)
+
+task1 = do_something.delay('bob')
+# Worker cold shuttdown causes lock to remain
+task2 = do_something.delay('bob') # lock should be removed
+```
 
 ## App Configuration
 
