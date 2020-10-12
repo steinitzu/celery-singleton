@@ -4,10 +4,7 @@ services:
   - redis-server
 language: python
 python:
-  - "3.6"
   - "3.7"
-  - "3.8"
-  - "3.9"
 install: poetry install
 script: python -m pytest
 before_install:
