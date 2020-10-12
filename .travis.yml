@@ -4,8 +4,9 @@ services:
   - redis-server
 language: python
 python:
-  - "3.4"
-  - "3.5"
   - "3.6"
-install: pip install -r requirements.txt -r dev-requirements.txt
+  - "3.7"
+  - "3.8"
+  - "3.9"
+install: poetry install
 script: python -m pytest
