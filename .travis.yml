@@ -5,7 +5,7 @@ services:
 language: python
 python:
   - "3.7"
-install: poetry install
-script: python -m pytest
 before_install:
-  - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+  - pip install poetry
+install: poetry install -v
+script: python -m pytest
