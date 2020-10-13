@@ -1,8 +1,8 @@
-sudo: false
+os: linux
 dist: focal
 cache: pip
 services:
-  - redis-server
+  - redis
 language: python
 python:
   - "3.6"
@@ -15,6 +15,5 @@ before_install:
   - pip install poetry
 install:
   - poetry install -v
-  - if [[ $CELERY == '4' ]]; then travis_retry poetry add celery^4;
-  fi
+  - if [[ $CELERY == "4" ]]; then travis_retry poetry add celery^4; fi
 script: python -m pytest
