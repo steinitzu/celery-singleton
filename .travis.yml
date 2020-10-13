@@ -16,4 +16,5 @@ before_install:
 install:
   - poetry install -v
   - if [[ $CELERY == "4" ]]; then travis_retry poetry add celery^4; fi
+  - poetry show
 script: python -m pytest
