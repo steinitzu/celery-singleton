@@ -8,7 +8,13 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+env:
+  - CELERY=4
+  - CELERY=5
 before_install:
   - pip install poetry
-install: poetry install -v
+install:
+  - poetry install -v
+  - if [[ $CELERY == '4' ]]; then travis_retry poetry add celery^4;
+  fi
 script: python -m pytest

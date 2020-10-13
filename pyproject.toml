@@ -9,7 +9,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.6"
-celery = "*"
+celery = ">=4"
 redis = "*"
 
 [tool.poetry.dev-dependencies]
