@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2020-10-12
+
+### Added
+- include celery 5 in dependency
+
 ## [0.2.0] - 2019-05-24
 
 ### Added
