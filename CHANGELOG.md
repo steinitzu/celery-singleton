@@ -3,7 +3,10 @@
 ## [0.3.0] - 2020-10-12
 
 ### Added
-- include celery 5 in dependency
+- Support Celery 5. PR [#30](https://github.com/steinitzu/celery-singleton/pull/30) by [@wangsha](https://github.com/wangsha)
+
+### Removed
+- Remove python 3.5 support (dropped by Celery 5)
 
 ## [0.2.0] - 2019-05-24
 
