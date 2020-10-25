@@ -101,7 +101,7 @@ from celery.signals import worker_ready
 from celery_singleton import clear_locks
 from somewhere import celery_app
 
-@worker_ready()
+@worker_ready.connect
 def unlock_all(**kwargs):
     clear_locks(celery_app)
 ```
