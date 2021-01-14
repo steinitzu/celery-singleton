@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "celery-singleton"
-version = "0.3.0"
+version = "0.3.1"
 description = "Prevent duplicate celery tasks"
 authors = ["Steinthor Palsson <steini90@gmail.com>"]
 homepage = 'https://github.com/steinitzu/celery-singleton'

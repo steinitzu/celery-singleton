@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2021-01-14
+
+### Changed
+- Correct signal usage in README [#30](https://github.com/steinitzu/celery-singleton/pull/30) by [@reorx](https://github.com/reorx)
+- Fix wrong repository and homepage URL in pyproject.toml (thanks [@utapyngo](https://github.com/utapyngo) for pointing it out)
+
 ## [0.3.0] - 2020-10-12
 
 ### Added
