@@ -3,8 +3,8 @@ name = "celery-singleton"
 version = "0.3.0"
 description = "Prevent duplicate celery tasks"
 authors = ["Steinthor Palsson <steini90@gmail.com>"]
-homepage = 'https://github.com/steinitzu/spoffy'
-repository = 'https://github.com/steinitzu/spoffy'
+homepage = 'https://github.com/steinitzu/celery-singleton'
+repository = 'https://github.com/steinitzu/celery-singleton'
 license = "MIT"
 
 [tool.poetry.dependencies]
