@@ -36,6 +36,10 @@ class Config:
         return url
 
     @property
+    def broker_transport_options(self):
+        return self.app.conf.get('broker_transport_options')
+
+    @property
     def raise_on_duplicate(self):
         return self.app.conf.get("singleton_raise_on_duplicate")
 

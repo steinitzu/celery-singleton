@@ -19,7 +19,8 @@ def get_backend(config):
     klass = config.backend_class
     kwargs = config.backend_kwargs
     url = config.backend_url
-    _backend = klass(url, **kwargs)
+    broker_transport_options = config.broker_transport_options
+    _backend = klass(url, broker_transport_options=broker_transport_options, **kwargs)
     return _backend
 
 
