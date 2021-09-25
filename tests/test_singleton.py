@@ -288,6 +288,34 @@ class TestUniqueOn:
             assert mock_gen.call_count == 2
             assert [list(a) for a in mock_gen.call_args_list] == expected_args
 
+    @mock.patch.object(
+        util, "generate_lock", autospec=True, side_effect=util.generate_lock
+    )
+    def test__unique_on_handles_unspecified_default_args(
+        self, mock_gen, scoped_app, celery_session_worker
+    ):
+        with scoped_app as app:
+
+            @celery_session_worker.app.task(base=Singleton, unique_on="d")
+            def unique_on_default_task(a, b=2, c=3, d=4):
+                return a * b * c * d
+
+            celery_session_worker.reload()  # So task is registered
+
+            result = unique_on_default_task.delay(2, b=3, c=4)
+
+            result.get()
+            time.sleep(0.05)  # Small delay for on_success
+
+            expected_args = [
+                [
+                    (unique_on_default_task.name, [], {"d": 4}),
+                    {"key_prefix": unique_on_default_task.singleton_config.key_prefix},
+                ]
+            ] * 2
+            assert mock_gen.call_count == 2
+            assert [list(a) for a in mock_gen.call_args_list] == expected_args
+
 
 class TestRaiseOnDuplicateConfig:
     def test__default_false(self, scoped_app):

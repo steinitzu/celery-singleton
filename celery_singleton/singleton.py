@@ -64,8 +64,9 @@ class Singleton(BaseTask):
                 unique_kwargs = {}
             else:
                 sig = inspect.signature(self.run)
-                bound = sig.bind(*task_args, **task_kwargs).arguments
-                unique_kwargs = {key: bound[key] for key in unique_on}
+                bound = sig.bind(*task_args, **task_kwargs)
+                bound.apply_defaults()
+                unique_kwargs = {key: bound.arguments[key] for key in unique_on}
             unique_args = []
         else:
             unique_args = task_args
