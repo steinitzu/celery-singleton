@@ -138,6 +138,8 @@ task2 = do_something.delay(username='bob', otherarg=100)  # this is a duplicate 
 assert task1 == task2
 ```
 
+Specify an empty list to consider the task name only.
+
 ### raise\_on\_duplicate
 
 When this option is enabled the task's `delay` and `apply_async` method will raise a `DuplicateTaskError` exception when attempting to spawn a duplicate task instead of returning the existing task's `AsyncResult`

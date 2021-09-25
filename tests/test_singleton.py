@@ -235,6 +235,34 @@ class TestUniqueOn:
     @mock.patch.object(
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
+    def test__unique_on_empty__lock_on_task_name_only(
+        self, mock_gen, scoped_app, celery_session_worker
+    ):
+        with scoped_app as app:
+
+            @celery_session_worker.app.task(base=Singleton, unique_on=[])
+            def unique_on_empty_task(a, b=2, c=3, d=4):
+                return a * b * c * d
+
+            celery_session_worker.reload()  # So task is registered
+
+            result = unique_on_empty_task.delay(2, b=3, c=4, d=5)
+
+            result.get()
+            time.sleep(0.05)  # Small delay for on_success
+
+            expected_args = [
+                [
+                    (unique_on_empty_task.name, [], {}),
+                    {"key_prefix": unique_on_empty_task.singleton_config.key_prefix},
+                ]
+            ] * 2
+            assert mock_gen.call_count == 2
+            assert [list(a) for a in mock_gen.call_args_list] == expected_args
+
+    @mock.patch.object(
+        util, "generate_lock", autospec=True, side_effect=util.generate_lock
+    )
     def test__unique_on_is_string_convertes_to_list(
         self, mock_gen, scoped_app, celery_session_worker
     ):

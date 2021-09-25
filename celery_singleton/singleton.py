@@ -57,14 +57,16 @@ class Singleton(BaseTask):
         unique_on = self.unique_on
         task_args = task_args or []
         task_kwargs = task_kwargs or {}
-        if unique_on:
+        if unique_on is not None:
             if isinstance(unique_on, str):
                 unique_on = [unique_on]
-            sig = inspect.signature(self.run)
-            bound = sig.bind(*task_args, **task_kwargs).arguments
-
+            if not any(unique_on):
+                unique_kwargs = {}
+            else:
+                sig = inspect.signature(self.run)
+                bound = sig.bind(*task_args, **task_kwargs).arguments
+                unique_kwargs = {key: bound[key] for key in unique_on}
             unique_args = []
-            unique_kwargs = {key: bound[key] for key in unique_on}
         else:
             unique_args = task_args
             unique_kwargs = task_kwargs
