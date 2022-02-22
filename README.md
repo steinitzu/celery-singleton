@@ -165,7 +165,7 @@ This option can also be applied globally to all `Singleton` tasks by setting `si
 ### lock\_expiry
 
 Number of seconds until the task lock expires. This is useful when you want a max of one task queued within a given time frame rather than strictly one at a time.
-This also adds some safety to your application as it guarantees that locks will eventually be released in case of worker crashes and network failures. For this use case it's recomenneded to set the lock expiry to a value slightly longer than the expected task duration.
+This also adds some safety to your application as it guarantees that locks will eventually be released in case of worker crashes and network failures. For this use case it's recommended to set the lock expiry to a value slightly longer than the expected task duration.
 
 Example
 
