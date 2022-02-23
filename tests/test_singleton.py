@@ -3,6 +3,9 @@ from unittest import mock
 import time
 from contextlib import contextmanager
 
+import json
+import random
+import uuid
 from celery import Celery
 from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
@@ -369,3 +372,81 @@ class TestLockExpiry:
             mock_lock.assert_called_once_with(
                 simple_task.singleton_backend, lock, result.task_id, expiry=60
             )
+
+
+class MyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return obj
+
+
+@pytest.mark.parametrize(
+    "singleton_json_encoder_class",
+    [(MyJSONEncoder), ("tests.test_singleton.MyJSONEncoder")],
+    ids=["class", "path"],
+)
+class TestCustomJSONEncoder:
+    @pytest.fixture(scope="function")
+    def celery_config(self, celery_config, singleton_json_encoder_class):
+        celery_config = dict(
+            celery_config, singleton_json_encoder_class=singleton_json_encoder_class
+        )
+        yield celery_config
+
+    def test__queue_fails_with_non_string_value(self, scoped_app):
+        with scoped_app as app:
+            app.conf["singleton_json_encoder_class"] = None
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            args = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+
+            with pytest.raises(
+                TypeError, match="Object of type UUID is not JSON serializable"
+            ):
+                [simple_task.apply_async(args=args) for i in range(10)]
+
+    def test__queue_duplicates__same_id(self, scoped_app, celery_config):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            args = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+            tasks = [simple_task.apply_async(args=args) for i in range(10)]
+            assert set(tasks) == set([tasks[0]])
+
+    def test__queue_duplicates__same_id__via_marshall(self, scoped_app, celery_config):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            args = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+
+            def random_cast(val):
+                return random.choice([str, lambda s: s])(val)
+
+            tasks = [
+                simple_task.apply_async(args=[random_cast(arg) for arg in args])
+                for i in range(10)
+            ]
+            assert set(tasks) == set([tasks[0]])
+
+    def test__queue_multiple_uniques__different_ids(self, scoped_app):
+        with scoped_app as app:
+
+            @app.task(base=Singleton)
+            def simple_task(*args):
+                return args
+
+            tasks = [
+                simple_task.apply_async(args=[uuid.uuid4(), uuid.uuid4(), uuid.uuid4()])
+                for i in range(5)
+            ]
+            assert len(set(tasks)) == len(tasks)
