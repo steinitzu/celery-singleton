@@ -196,11 +196,14 @@ Note: if using old style celery config with uppercase variables and a namespace,
 | `singleton_backend_url`        | `celery_backend_url`                    | The URL of the storage backend. If using the default backend implementation, this should be a redis URL. It is passed as the first argument to the backend class.    |
 | `singleton_backend_class`      | `celery_singleton.backend.RedisBackend` | The full import path of a backend class as string or a reference to the class                                                                                       |
 | `singleton_backend_kwargs`     | `{}`                                    | Passed as keyword arguments to the backend class                                                                                                                     |
+| `singleton_json_encoder_class` | `None` ([`json.JSONEncoder`]) | Optional JSON encoder class for generating lock. Useful for task arguments where objects can be reliably marshalled to string (such as [`uuid.UUID`])                                                                                              |
 | `singleton_key_prefix`         | `SINGLETONLOCK_`                        | Locks are stored as `<key_prefix><lock>`. Use to prevent collisions with other keys in your database.                                                                |
 | `singleton_raise_on_duplicate` | `False`                                 | When `True` an attempt to queue a duplicate task will raise a `DuplicateTaskerror`. The default behavior is to return the `AsyncResult` for the existing task.       |
 | `singleton_lock_expiry`        | `None` (Never expires)                  | Lock expiry time in second for singleton task locks. When lock expires identical tasks are allowed to run regardless of whether the locked task has finished or not. |
 |                                |                                         |                                                                                                                                                                      |
 
+[`json.JSONEncoder`]: https://docs.python.org/3/library/json.html#json.JSONEncoder
+[`uuid.UUID`]: https://docs.python.org/3/library/uuid.html#uuid.UUID
 
 ## Testing
 

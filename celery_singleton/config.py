@@ -22,6 +22,16 @@ class Config:
         return path_or_class
 
     @property
+    def json_encoder_class(self):
+        path_or_class = self.app.conf.get("singleton_json_encoder_class", None)
+        if isinstance(path_or_class, str):
+            path = path_or_class.split(".")
+            mod_name, class_name = ".".join(path[:-1]), path[-1]
+            mod = import_module(mod_name)
+            return getattr(mod, class_name)
+        return path_or_class
+
+    @property
     def backend_kwargs(self):
         return self.app.conf.get("singleton_backend_kwargs", {})
 
