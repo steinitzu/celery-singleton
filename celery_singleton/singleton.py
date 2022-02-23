@@ -76,6 +76,7 @@ class Singleton(BaseTask):
             unique_args,
             unique_kwargs,
             key_prefix=self.singleton_config.key_prefix,
+            json_encoder_class=self.singleton_config.json_encoder_class,
         )
 
     def apply_async(
