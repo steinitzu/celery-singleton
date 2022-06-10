@@ -21,6 +21,7 @@ class Singleton(BaseTask):
     unique_on = None
     raise_on_duplicate = None
     lock_expiry = None
+    release_on_start = False
 
     @property
     def _raise_on_duplicate(self):
@@ -145,8 +146,14 @@ class Singleton(BaseTask):
             )
         return self.AsyncResult(existing_task_id)
 
+    def before_start(self, task_id, args, kwargs):
+        if self.release_on_start:
+            self.release_lock(task_args=args, task_kwargs=kwargs)
+
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        self.release_lock(task_args=args, task_kwargs=kwargs)
+        if not self.release_on_start:
+            self.release_lock(task_args=args, task_kwargs=kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
-        self.release_lock(task_args=args, task_kwargs=kwargs)
+        if not self.release_on_start:
+            self.release_lock(task_args=args, task_kwargs=kwargs)

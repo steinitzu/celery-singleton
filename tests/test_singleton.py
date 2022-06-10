@@ -8,6 +8,7 @@ from celery import Task as BaseTask
 from celery_singleton.singleton import Singleton, clear_locks
 from celery_singleton import util, DuplicateTaskError
 from celery_singleton.backends.redis import RedisBackend
+from celery import version_info as celery_version
 from celery_singleton.backends import get_backend
 from celery_singleton.config import Config
 
@@ -369,3 +370,33 @@ class TestLockExpiry:
             mock_lock.assert_called_once_with(
                 simple_task.singleton_backend, lock, result.task_id, expiry=60
             )
+
+
+class TestReleaseOnStart:
+    @pytest.mark.skipif(celery_version < (5, 2), reason="Feature requires least celery-5.2")
+    def test__release_on_start(
+        self, scoped_app, celery_worker
+    )   :
+        with scoped_app:
+            @celery_worker.app.task(base=Singleton, release_on_start=True)
+            def queue_only_task(a):
+                time.sleep(1)
+                return a * 2
+
+            celery_worker.reload()  # So task is registered
+
+            # `task1` is in queue, but not started
+            task1 = queue_only_task.apply_async(args=[1], countdown=1)
+            time.sleep(0.05)  # small delay for on_success
+            # `task2` is in queue, but not started
+            task2 = queue_only_task.apply_async(args=[1])
+            # Both tasks were in the queue
+            assert task1 == task2
+
+            time.sleep(1.10)
+            # `task1` is now started (and the lock is released)
+            task3 = queue_only_task.apply_async(args=[1])
+            time.sleep(0.05)  # small delay for on_success
+            task3.get()
+            # `task1` had started executing, so `task3` was free to be scheduled
+            assert task1 != task3
