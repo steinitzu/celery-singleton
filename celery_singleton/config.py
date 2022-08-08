@@ -31,7 +31,7 @@ class Config:
         if url is not None:
             return url
         url = self.app.conf.get("result_backend")
-        if not url or not url.startswith("redis://"):
+        if not url or not url.startswith("redis://") or not url.startswith("rediss://"):
             url = self.app.conf.get("broker_url")
         return url
 
