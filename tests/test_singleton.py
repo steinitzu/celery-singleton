@@ -410,7 +410,7 @@ class TestCustomJSONEncoder:
             args = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
 
             with pytest.raises(
-                TypeError, match="Object of type UUID is not JSON serializable"
+                TypeError, match=r"Object of type '?UUID'? is not JSON serializable"
             ):
                 [simple_task.apply_async(args=args) for i in range(10)]
 

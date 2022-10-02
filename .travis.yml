@@ -12,9 +12,9 @@ env:
   - CELERY=4
   - CELERY=5
 before_install:
+  - pip install --upgrade pip
   - pip install poetry
 install:
   - poetry install -v
-  - if [[ $CELERY == "4" ]]; then travis_retry poetry add celery^4; fi
-  - poetry show
+  - if [[ $CELERY == "4" ]]; then pip install "celery>=4, <5"; fi
 script: python -m pytest
