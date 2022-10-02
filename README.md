@@ -15,6 +15,8 @@ This is a baseclass for celery tasks that ensures only one instance of the task 
     - [Task configuration](#task-configuration)
         - [unique\_on](#uniqueon)
         - [raise\_on\_duplicate](#raiseonduplicate)
+        - [lock\_expiry](#lockexpiry)
+        - [release\_on\_start](#releaseonstart)
     - [App Configuration](#app-configuration)
     - [Testing](#testing)
     - [Contribute](#contribute)
@@ -183,6 +185,25 @@ assert task1 != task2  # These are two separate task instances
 ```
 
 This option can be applied globally in the [app config](#app-configuration) with `singleton_lock_expiry`. Task option supersedes the app config.
+
+### release\_on\_start
+_Warning: This is only available in celery versions 5.2 and above_
+
+By default, the lock that a singleton task holds is released when the job is finished. By setting `release_on_start=True` on the task, the lock will be released before the task is run and is thus only held while the job is in the queue.
+
+```python
+@app.task(base=Singleton, release_on_start=True)
+def runs_for_3_seconds():
+    self.time.sleep(3)
+
+
+task1 = runs_for_3_seconds.delay()
+time.sleep(1)
+# task1 has started and is still running
+task2 = runs_for_3_seconds.delay()
+
+assert task1 != task2  # These are two separate task instances
+```
 
 
 ## App Configuration
