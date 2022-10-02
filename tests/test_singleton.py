@@ -10,6 +10,7 @@ from celery_singleton import util, DuplicateTaskError
 from celery_singleton.backends.redis import RedisBackend
 from celery_singleton.backends import get_backend
 from celery_singleton.config import Config
+from celery_singleton import inspect_celery
 
 
 @pytest.fixture(scope="session")
@@ -369,3 +370,86 @@ class TestLockExpiry:
             mock_lock.assert_called_once_with(
                 simple_task.singleton_backend, lock, result.task_id, expiry=60
             )
+
+class TestChallengeLockOnStartup:
+    @mock.patch.object(inspect_celery, "get_task_by_id", return_value=None)
+    @mock.patch.object(inspect_celery, "are_worker_active", return_value=True)
+    def test__lock_invalidation__remove_lock_if_no_task_running(self, mock_celery_inspect, mock_celery_ping, scoped_app):
+        with scoped_app as app:
+            # Given
+            task_args=[1, 2, 3]
+            @app.task(name="simple_task", base=Singleton, challenge_lock_on_startup=True, celery_app=app)
+            def simple_task(*args):
+                return args
+            lock = simple_task.generate_lock(simple_task.name, task_args=task_args)
+            simple_task.unlock = mock.MagicMock()
+            simple_task.release_lock = mock.MagicMock() # avoid call to unlock on task completion
+            simple_task.singleton_backend.get = mock.MagicMock()
+            simple_task.singleton_backend.get.return_value = '243254'
+
+            # When
+            simple_task.delay(1, 2, 3)
+
+            # Then
+            simple_task.unlock.assert_called_once_with(lock)
+    
+    @mock.patch.object(inspect_celery, "get_task_by_id", return_value=inspect_celery.CeleryTask('1234', 'simple_task', args=[1, 2, 3], kwargs=None))
+    @mock.patch.object(inspect_celery, "are_worker_active", return_value=True)
+    def test__lock_invalidation__do_not_remove_lock_if_task_running(self, mock_celery_inspect, mock_celery_ping, scoped_app):
+        with scoped_app as app:
+            # Given
+            task_name = "simple_task"
+            task_args=[1, 2, 3]
+            @app.task(name="simple_task", base=Singleton, challenge_lock_on_startup=True, celery_app=app)
+            def simple_task(*args):
+                return args
+            lock = simple_task.generate_lock(simple_task.name, task_args, None)
+            simple_task.unlock = mock.MagicMock()
+            simple_task.release_lock = mock.MagicMock() # avoid call to unlock on task completion
+            simple_task.singleton_backend.get = mock.MagicMock()
+            simple_task.singleton_backend.get.return_value = '1234' # Lock exists matching task ID
+
+            # When
+            simple_task.delay(1, 2, 3)
+
+            # Then
+            simple_task.unlock.assert_not_called()
+    
+    @mock.patch.object(inspect_celery, "get_task_by_id", return_value=None)
+    @mock.patch.object(inspect_celery, "are_worker_active", return_value=False)
+    def test__lock_invalidation__do_not_remove_lock_if_no_worker_running(self, mock_celery_inspect, mock_celery_ping, scoped_app):
+        with scoped_app as app:
+            # Given
+            @app.task(name="simple_task", base=Singleton, challenge_lock_on_startup=True, celery_app=app)
+            def simple_task(*args):
+                return args
+            simple_task.unlock = mock.MagicMock()
+            simple_task.release_lock = mock.MagicMock() # avoid call to unlock on task completion
+            simple_task.singleton_backend.get = mock.MagicMock()
+            simple_task.singleton_backend.get.return_value = '1234'
+
+            # When
+            simple_task.delay(1, 2, 3)
+
+            # Then
+            simple_task.unlock.assert_not_called()
+    
+    @mock.patch.object(inspect_celery, "get_task_by_id", return_value=None)
+    @mock.patch.object(inspect_celery, "are_worker_active", return_value=True)
+    def test__lock_invalidation__do_not_list_active_tasks_if_no_lock_found(self, mock_celery_inspect, mock_celery_ping, scoped_app):
+        with scoped_app as app:
+            # Given
+            @app.task(name="simple_task", base=Singleton, challenge_lock_on_startup=True, celery_app=app)
+            def simple_task(*args):
+                return args
+            simple_task.unlock = mock.MagicMock()
+            simple_task.release_lock = mock.MagicMock() # avoid call to unlock on task completion
+            simple_task.singleton_backend.get = mock.MagicMock()
+            simple_task.singleton_backend.get.return_value = None
+
+            # When
+            simple_task.delay(1, 2, 3)
+
+            # Then
+            inspect_celery.get_task_by_id.assert_not_called()
+            simple_task.unlock.assert_not_called()

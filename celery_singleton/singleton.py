@@ -6,6 +6,7 @@ from .backends import get_backend
 from .config import Config
 from .exceptions import DuplicateTaskError
 from . import util
+from . import inspect_celery
 
 
 def clear_locks(app):
@@ -21,6 +22,8 @@ class Singleton(BaseTask):
     unique_on = None
     raise_on_duplicate = None
     lock_expiry = None
+    challenge_lock_on_startup = False
+    celery_app = None
 
     @property
     def _raise_on_duplicate(self):
@@ -106,6 +109,9 @@ class Singleton(BaseTask):
             **options
         )
 
+        if self.challenge_lock_on_startup:
+            self.challenge_lock(lock, args, kwargs)
+
         task = self.lock_and_run(**run_args)
         if task:
             return task
@@ -129,6 +135,17 @@ class Singleton(BaseTask):
                 # Clear the lock if apply_async fails
                 self.unlock(lock)
                 raise
+    
+    def challenge_lock(self, lock, args, kwargs):
+        current_lock_id = self.singleton_backend.get(lock)
+        if not current_lock_id:
+            return
+        if not inspect_celery.are_worker_active(self.celery_app):
+            return
+        task_found = inspect_celery.get_task_by_id(self.celery_app, current_lock_id)
+        if task_found:
+            return
+        self.unlock(lock)
 
     def release_lock(self, task_args=None, task_kwargs=None):
         lock = self.generate_lock(self.name, task_args, task_kwargs)
