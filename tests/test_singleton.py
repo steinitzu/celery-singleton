@@ -29,13 +29,13 @@ def celery_enable_logging():
     return True
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 @contextmanager
 def scoped_app(celery_app):
+    backend = get_backend(Config(celery_app))
     try:
         yield celery_app
     finally:
-        backend = get_backend(Config(celery_app))
         backend.redis.flushall()
 
 
@@ -65,15 +65,15 @@ class TestSimpleTask:
             assert len(set(tasks)) == len(tasks)
 
     def test__queue_duplicate_after_success__different_ids(
-        self, scoped_app, celery_session_worker
+        self, scoped_app, celery_worker
     ):
         with scoped_app:
 
-            @celery_session_worker.app.task(base=Singleton)
+            @celery_worker.app.task(base=Singleton)
             def simple_task(*args):
                 return args
 
-            celery_session_worker.reload()
+            celery_worker.reload()
 
             task1 = simple_task.apply_async(args=[1, 2, 3])
             task1.get()
@@ -84,15 +84,15 @@ class TestSimpleTask:
             assert task1 != task2
 
     def test__queue_duplicate_after_error__different_ids(
-        self, scoped_app, celery_session_worker
+        self, scoped_app, celery_worker
     ):
         with scoped_app:
 
-            @celery_session_worker.app.task(base=Singleton)
+            @celery_worker.app.task(base=Singleton)
             def fails(*args):
                 raise ExpectedTaskFail()
 
-            celery_session_worker.reload()
+            celery_worker.reload()
 
             task1 = fails.apply_async(args=[1, 2, 3])
             try:
@@ -184,15 +184,15 @@ class TestUniqueOn:
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
     def test__unique_on_pos_arg__lock_on_unique_args_only(
-        self, mock_gen, scoped_app, celery_session_worker
+        self, mock_gen, scoped_app, celery_worker
     ):
         with scoped_app:
 
-            @celery_session_worker.app.task(base=Singleton, unique_on=["a", "c"])
+            @celery_worker.app.task(base=Singleton, unique_on=["a", "c"])
             def unique_on_args_task(a, b, c, d=4):
                 return a * b * c * d
 
-            celery_session_worker.reload()  # So task is registered
+            celery_worker.reload()  # So task is registered
 
             result = unique_on_args_task.delay(2, 3, 4, 5)
             result.get()
@@ -201,7 +201,8 @@ class TestUniqueOn:
             expected_args = [
                 [
                     (unique_on_args_task.name, [], {"a": 2, "c": 4}),
-                    {"key_prefix": unique_on_args_task.singleton_config.key_prefix},
+                    {"key_prefix": unique_on_args_task.singleton_config.key_prefix,
+                     "json_encoder_class": unique_on_args_task.singleton_config.json_encoder_class},
                 ]
             ] * 2
             assert mock_gen.call_count == 2
@@ -211,15 +212,15 @@ class TestUniqueOn:
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
     def test__unique_on_kwargs__lock_on_unique_args_only(
-        self, mock_gen, scoped_app, celery_session_worker
+        self, mock_gen, scoped_app, celery_worker
     ):
         with scoped_app:
 
-            @celery_session_worker.app.task(base=Singleton, unique_on=["b", "d"])
+            @celery_worker.app.task(base=Singleton, unique_on=["b", "d"])
             def unique_on_kwargs_task(a, b=2, c=3, d=4):
                 return a * b * c * d
 
-            celery_session_worker.reload()  # So task is registered
+            celery_worker.reload()  # So task is registered
 
             result = unique_on_kwargs_task.delay(2, b=3, c=4, d=5)
 
@@ -229,7 +230,8 @@ class TestUniqueOn:
             expected_args = [
                 [
                     (unique_on_kwargs_task.name, [], {"b": 3, "d": 5}),
-                    {"key_prefix": unique_on_kwargs_task.singleton_config.key_prefix},
+                    {"key_prefix": unique_on_kwargs_task.singleton_config.key_prefix,
+                     "json_encoder_class": unique_on_kwargs_task.singleton_config.json_encoder_class},
                 ]
             ] * 2
             assert mock_gen.call_count == 2
@@ -239,15 +241,15 @@ class TestUniqueOn:
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
     def test__unique_on_empty__lock_on_task_name_only(
-        self, mock_gen, scoped_app, celery_session_worker
+        self, mock_gen, scoped_app, celery_worker
     ):
         with scoped_app as app:
 
-            @celery_session_worker.app.task(base=Singleton, unique_on=[])
+            @celery_worker.app.task(base=Singleton, unique_on=[])
             def unique_on_empty_task(a, b=2, c=3, d=4):
                 return a * b * c * d
 
-            celery_session_worker.reload()  # So task is registered
+            celery_worker.reload()  # So task is registered
 
             result = unique_on_empty_task.delay(2, b=3, c=4, d=5)
 
@@ -257,7 +259,8 @@ class TestUniqueOn:
             expected_args = [
                 [
                     (unique_on_empty_task.name, [], {}),
-                    {"key_prefix": unique_on_empty_task.singleton_config.key_prefix},
+                    {"key_prefix": unique_on_empty_task.singleton_config.key_prefix,
+                     "json_encoder_class": unique_on_empty_task.singleton_config.json_encoder_class},
                 ]
             ] * 2
             assert mock_gen.call_count == 2
@@ -267,15 +270,15 @@ class TestUniqueOn:
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
     def test__unique_on_is_string_convertes_to_list(
-        self, mock_gen, scoped_app, celery_session_worker
+        self, mock_gen, scoped_app, celery_worker
     ):
         with scoped_app as app:
 
-            @celery_session_worker.app.task(base=Singleton, unique_on="c")
+            @celery_worker.app.task(base=Singleton, unique_on="c")
             def unique_on_string_task(a, b=2, c=3, d=4):
                 return a * b * c * d
 
-            celery_session_worker.reload()  # So task is registered
+            celery_worker.reload()  # So task is registered
 
             result = unique_on_string_task.delay(2, b=3, c=4, d=5)
 
@@ -285,7 +288,8 @@ class TestUniqueOn:
             expected_args = [
                 [
                     (unique_on_string_task.name, [], {"c": 4}),
-                    {"key_prefix": unique_on_string_task.singleton_config.key_prefix},
+                    {"key_prefix": unique_on_string_task.singleton_config.key_prefix,
+                     "json_encoder_class": unique_on_string_task.singleton_config.json_encoder_class},
                 ]
             ] * 2
             assert mock_gen.call_count == 2
@@ -295,15 +299,15 @@ class TestUniqueOn:
         util, "generate_lock", autospec=True, side_effect=util.generate_lock
     )
     def test__unique_on_handles_unspecified_default_args(
-        self, mock_gen, scoped_app, celery_session_worker
+        self, mock_gen, scoped_app, celery_worker
     ):
         with scoped_app as app:
 
-            @celery_session_worker.app.task(base=Singleton, unique_on="d")
+            @celery_worker.app.task(base=Singleton, unique_on="d")
             def unique_on_default_task(a, b=2, c=3, d=4):
                 return a * b * c * d
 
-            celery_session_worker.reload()  # So task is registered
+            celery_worker.reload()  # So task is registered
 
             result = unique_on_default_task.delay(2, b=3, c=4)
 
@@ -313,7 +317,8 @@ class TestUniqueOn:
             expected_args = [
                 [
                     (unique_on_default_task.name, [], {"d": 4}),
-                    {"key_prefix": unique_on_default_task.singleton_config.key_prefix},
+                    {"key_prefix": unique_on_default_task.singleton_config.key_prefix,
+                     "json_encoder_class": unique_on_default_task.singleton_config.json_encoder_class},
                 ]
             ] * 2
             assert mock_gen.call_count == 2
@@ -409,7 +414,7 @@ class TestCustomJSONEncoder:
             ):
                 [simple_task.apply_async(args=args) for i in range(10)]
 
-    def test__queue_duplicates__same_id(self, scoped_app, celery_config):
+    def test__json_queue_duplicates__same_id(self, scoped_app, celery_config):
         with scoped_app as app:
 
             @app.task(base=Singleton)
