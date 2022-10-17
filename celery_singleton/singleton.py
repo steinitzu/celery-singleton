@@ -22,6 +22,10 @@ class Singleton(BaseTask):
     raise_on_duplicate = None
     lock_expiry = None
 
+    def __init__(self, *args, **kwargs):
+        self._unlock_to_super_retry = False
+        super(Singleton, self).__init__(*args, **kwargs)
+
     @property
     def _raise_on_duplicate(self):
         if self.raise_on_duplicate is not None:
@@ -79,17 +83,8 @@ class Singleton(BaseTask):
             json_encoder_class=self.singleton_config.json_encoder_class,
         )
 
-    def apply_async(
-        self,
-        args=None,
-        kwargs=None,
-        task_id=None,
-        producer=None,
-        link=None,
-        link_error=None,
-        shadow=None,
-        **options
-    ):
+    def apply_async(self, args=None, kwargs=None, task_id=None, producer=None,
+                    link=None, link_error=None, shadow=None, **options):
         args = args or []
         kwargs = kwargs or {}
         task_id = task_id or uuid()
@@ -121,14 +116,15 @@ class Singleton(BaseTask):
 
     def lock_and_run(self, lock, *args, task_id=None, **kwargs):
         lock_aquired = self.aquire_lock(lock, task_id)
-        if lock_aquired:
+        if lock_aquired or self._unlock_to_super_retry:
             try:
                 return super(Singleton, self).apply_async(
                     *args, task_id=task_id, **kwargs
                 )
             except Exception:
                 # Clear the lock if apply_async fails
-                self.unlock(lock)
+                if lock_aquired:
+                    self.unlock(lock)
                 raise
 
     def release_lock(self, task_args=None, task_kwargs=None):
@@ -141,7 +137,9 @@ class Singleton(BaseTask):
     def on_duplicate(self, existing_task_id):
         if self._raise_on_duplicate:
             raise DuplicateTaskError(
-                "Attempted to queue a duplicate of task ID {}".format(existing_task_id),
+                "Attempted to queue a duplicate of task ID {}".format(
+                    existing_task_id
+                ),
                 task_id=existing_task_id,
             )
         return self.AsyncResult(existing_task_id)
@@ -151,3 +149,13 @@ class Singleton(BaseTask):
 
     def on_success(self, retval, task_id, args, kwargs):
         self.release_lock(task_args=args, task_kwargs=kwargs)
+
+    def retry(self, args=None, kwargs=None, exc=None, throw=True,
+              eta=None, countdown=None, max_retries=None, **options):
+        self._unlock_to_super_retry = True
+        retry_task = super(Singleton, self).retry(
+            args, kwargs, exc, throw, eta, countdown, max_retries, **options
+        )
+        self._unlock_to_super_retry = False
+
+        return retry_task
