@@ -150,4 +150,5 @@ class Singleton(BaseTask):
         self.release_lock(task_args=args, task_kwargs=kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
-        self.release_lock(task_args=args, task_kwargs=kwargs)
+        if self.lock_expiry is None:
+            self.release_lock(task_args=args, task_kwargs=kwargs)
