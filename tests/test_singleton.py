@@ -64,6 +64,26 @@ class TestSimpleTask:
             tasks = [simple_task.apply_async(args=[i, i + 1, i + 2]) for i in range(5)]
             assert len(set(tasks)) == len(tasks)
 
+    def test__chain_multiple_uniques__different_ids(
+        self, scoped_app, celery_session_worker
+    ):
+        with scoped_app as app:
+
+            @celery_session_worker.app.task(base=Singleton)
+            def simple_task(*args):
+                print(args)
+                return args
+
+            celery_session_worker.reload()
+
+            async_result = (simple_task.si(1) |  simple_task.s(2)).delay()
+            async_result2 = (simple_task.si(1) |  simple_task.s(3)).delay()
+
+            time.sleep(0.1)
+
+            assert async_result.ready()
+            assert async_result2.ready()
+
     def test__queue_duplicate_after_success__different_ids(
         self, scoped_app, celery_worker
     ):
